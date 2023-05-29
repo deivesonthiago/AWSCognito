@@ -1,0 +1,164 @@
+Serviços AWS neste projeto
+COGNITO: Fornece autenticação, autorização e gerenciamento de usuários para suas aplicações Web e móveis. Seus usuários podem fazer login diretamente com um nome de usuário e uma senha ou por meio de terceiros, como o Facebook, a Amazon, o Google ou a Apple. Saiba mais.
+API GATEWAY: Serviço gerenciado que permite criação, publicação, manutenção, monitoramento e proteção de APIs REST e WebSocket em qualquer escala. Saiba mais.
+LAMBDA: Serviço de computação sem servidor e orientado a eventos que permite executar código para praticamente qualquer tipo de aplicação ou serviço de backend sem provisionar ou gerenciar servidores. Saiba mais.
+DYNAMODB: Banco de dados de chave-valor NoSQL, sem servidor e totalmente gerenciado, projetado para executar aplicações de alta performance em qualquer escala. Saiba mais.
+📄 Descrição do desafio de projeto
+Oferecer autenticação, autorização e gerenciamento de usuários para suas aplicações Web e Mobile com o Amazon Cognito. Esse serviço, totalmente gerenciado pela AWS, suporta os principais mecanismos de segurança do mercado, além da integração com terceiros, como Facebook, Google, Apple ou a própria Amazon.
+
+💻 Mão no console
+Todas as etapas deste projeto foram feitas diretamente no AWS Management Console.
+
+Todos os nomes marcados como código foram dados por mim e, portanto, ficam a critério de quem estiver reproduzindo o projeto.
+
+1. Criando uma API REST no API Gateway
+Entrar na tela do API Gateway e clicar em 👉 Create API
+Em Choose an API type ➡️ REST API ➡️ Build
+Em Choose the protocol marque REST e em Create new API selecione New API
+No campo API name inserir lab-cognito-api👉 Next
+Em Endpoint Type selecione Regional 👉 Create API
+Na tela de resources clique em Actions ➡️ Create Resource ➡️ Resource name: items 👉 Create resource
+❗ O método para este recurso será criado mais adiante.
+
+2. Criando a tabela no DynamoDB
+Na tela principal do serviço clicar em 👉 Create Table
+Em Table name inserir lab-cognito-table
+Em Partition key inserir a chave id e deixar o tipo string
+Rolar a página até o final e clicar em 👉 Create table
+3. Criando função Lambda
+Dentro do console do Lambda clicar em 👉 Create function
+Deixar selecionada a opção Author from scratch para criar uma função do zero
+Em Function name inserir lab-cognito-putItemFunction
+Em Runtime selecionar Node.js na versão de sua preferência
+Deixar a opção Architecture em x86_64 👉 Create function
+No editor de código abaixo de Code source inserir o conteúdo de putItemFunction.js que está neste repositório
+Depois de colar o código da função clicar em 👉 Deploy
+❗ Caso utilize o arquivo putItemFunction.js deste repositório não esqueça verificar se precisa ajustar o nome da tabela.
+
+Dentro do recurso criado será necessário configurar o IAM para que possa interagir com a tabela criada no DynamoDB.
+
+Clicar em Configuration ➡️ Permissions e abrir o link da Role name
+Na tela do IAM que abrirá em outra aba, dentro de Permissions clicar em Add inline policy
+Em Visual editor selecione Service
+Na caixa de pesquisa digite dynamodb e selecione o serviço
+Na caixa de pesquisa de Actions digite a ação putitem e marque a caixa permitindo a ação
+Logo abaixo em Resources deixe marcado Specific e clique em Add ARN
+Na tela que abirá em pop-up insira o ARN da tabela criada anteriormente no DynamoDB ➡️ Add ➡️ Review policy inserir nome putitem-policy 👉Create policy
+❗ ARN (Amazon Resource Name) é um identificador único de cada recurso criado na AWS.
+
+Agora a função Lambda conseguirá interagir com o banco de dados mas só com a função de inserção de items (put item).
+
+4. Integrando o API Gateway com o Lambda
+Voltando a tela do API Gateway entre na API criada anteriormente ➡️ Resources ➡️ /items ➡️ Actions ➡️ Create Method ➡️ POST ➡️ e confirma ☑️ Dentro do método defina os seguintes parâmetros:
+Integration type 🔘 Lambda Function
+Use Lambda Proxy integration ✅ (Muito importante, não esquecer de marcar)
+Lambda Region us-east-1 (Defina a mesma região que utilizou nos outros recursos)
+Lambda Function lab-cognito-putItemFunction (O nome da função Lambda)
+Use Default Timeout ✅
+➡️ Save ➡️ OK
+Seleciona o método POST ➡️ Actions 👉 Deploy API ➡️
+Deployment stage [New Stage] ➡️ Stage name* dev 👉 Deploy
+5. Teste no Postman
+Add Request ➡️ Method POST ➡️ Inserir o endpoint gerado no API Gateway
+
+Body ➡️ Raw ➡️ JSON ➡️ Adicionar o seguinte body
+{ "id": "005", "price": 165, "prod": "Câmera Tekpix" }
+
+👉 Send
+
+Após o teste esses dados devem aparecer na tabela do DynamoDB.
+
+6. Criando user pool e configurando atributos no Amazon Cognito
+A maior parte das configurações envolvendo política de segurança podem variar de acordo com a necessidade e o gosto de quem está configurando. Os meus parâmetros foram os seguintes:
+
+Na tela inicial do Cognito 👉 Create user pool
+Step 1 of 6: Configure sign-in experience
+Authentication providers 👉 ☑️ Cognito user pool
+Cognito user pool sign-in options ✅ Email 👉 Next
+Step 2 of 6: Configure security requirements
+Password policy 👉 🔘 Custom
+Password minimum length 8
+ Contains at least 1 number
+ Contains at least 1 special character
+ Contains at least 1 uppercase letter
+ Contains at least 1 lowercase letter
+Multi-factor authentication 👉 🔘 No MFA
+User account recovery 👉 ☑️ Enable self-service account recovery - Recommended
+Delivery method for user account recovery messages 👉 🔘 Email only 👉 Next
+Step 3 of 6: Configure sign-up experience
+Self-service sign-up 👉 ☑️ Enable self-registration
+Cognito-assisted verification and confirmation 👉 ☑️ Allow Cognito to automatically send messages to verify and confirm - Recommended
+Attributes to verify 👉 🔘 Send email message, verify email address
+Verifying attribute changes 👉 ☑️ Keep original attribute value active when an update is pending - Recommended
+Active attribute values when an update is pending 👉 🔘 Email address
+👉 Next
+Step 4 of 6: Configure message delivery
+👉 🔘 Send email with Cognito
+FROM email address no-reply@verificationemail.com
+👉 Next
+Step 5 of 6: Integrate your app
+👉 User pool name lab-cognito-userPool
+Hosted authentication pages 👉 ☑️ Use the Cognito Hosted UI
+Domain 👉 🔘 Use a Cognito domain
+Cognito domain https://lab-bootcamp .auth.us-east-1.amazoncognito.com
+Initial app client ➡️ App type 👉 🔘 Public client
+App client name lab-cognito-appClient
+Client secret 👉 🔘 Don't generate a client secret
+Allowed callback URLs ➡️ URL https://example.com/
+Advanced app client settings (Deixarei os valores padrão, veja se sua necessidade é outra)
+OAuth 2.0 grant types: (marque os tipos abaixo)
+ Implicit grant
+ Authorization code grant
+OpenID Connect scopes: (marque os valores abaixo)
+ Email
+ OpenID
+Attribute read and write permissions:
+Attribute: name ☑️ Read ☑️ Write
+👉 Next
+Step 6 of 6: Review and create
+👉 Create user pool
+7. Criando request de login no Postman
+Add request ➡️ Authorization ➡️ Type 👉 ☑️ OAuth 2.0
+Configure New Token ➡️ Configuration Options
+Grant Type 👉 Implicit
+Callback URL https://example.com
+Auth URL https://lab-bootcamp.auth.us-east-1.amazoncognito.com/login
+Client ID Cole neste campo o Client ID gerado no Cognito na tela App client information
+Scope email openid
+Client Authentication Send clients credentials in body
+👉 Get New Access Token
+
+Vai abrir a tela de login/cadastro. Aproveite e faça um cadastro (Sign up) para testar as políticas definidas no Cognito.
+Após cadastrar e fazer a verificação por e-mail faça o login na conta pela mesma tela (só que na opção Sign in).
+Se der tudo certo (Your registration has been confirmed!) a tela do Postman vai exibir a mensagem Authentication complete 👉 Proceed
+Após clicar em prosseguir o Postman gerará os tokens necessários para interagir com uma API autenticada.
+8. Atrelando user pool do Cognito com API Gateway
+Agora vamos atrelar o user pool do cognito com a API criada neste projeto.
+
+Voltando para o console do API Gateway clique na API criada anteriormente (lab-cognito-api) ➡️ Authorizers ➡️ Create New Authorizer
+Name lab-cognito-authorizer
+Type 👉 🔘 Cognito
+Cognito User Pool ➡️ us-east-1 lab-cognito-userPool (selecione o user pool que você acabou de criar no cognito)
+Token Source Authorization
+👉 Create
+Ainda dentro de API Gateway entrar na tela Resources ➡️ POST ➡️ Method Request
+Settings ➡️ Authorization ➡️ ✏️ lab-cognito-authorizer ☑️ (recarregue a página se o autorizador não aparecer de primeira)
+Após setar e salvar somente esta opção é necessário fazer o deploy da API novamente em Actions ➡️ Deploy API ➡️ Deployment stage dev 👉 Deploy
+9. Request de login com Token ID no Postman
+Copia o Token ID gerado no teste anterior e volta no POST request (feito no item 5 deste tutorial)
+
+Vá para o JSON e faça alguma alteração como no exemplo abaixo
+
+{ "id": "010", "price": 3200, "prod": "iPhone" }
+
+Na opção Authorization ➡️ Type Bearer Token ➡️ Token cola o Token ID que foi copiado 👉 Send
+
+Se a resposta da request for 'Item inserido com sucesso!' significa que a API aceitou a autenticação do seu usuário criado no Cognito.
+
+Para ter certeza que a API comunicou com o banco entre no DynamoDB e confira se a tabela exibe as informações enviadas acima.
+
+Caso todos os testes tenham ocorrido com sucesso podemos concluir que o Cognito está gerenciando a autenticação e a autorização da nossa aplicação. Essas são apenas algumas funções que este serviço é capaz de prover
+
+A partir desses conceitos podemos utilizar esses recursos em projetos maiores que eventualmente possam entrar em produção.
+
+Para entender mais a fundo leia a Documentação do Amazon Cognito
